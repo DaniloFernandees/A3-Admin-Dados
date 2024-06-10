@@ -1,100 +1,217 @@
+#Imports, descrição das colunas e informações
 import numpy as np
 import pandas as pd
+from tabulate import tabulate
 import seaborn as sns
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import statsmodels.stats.diagnostic as smd
+import matplotlib.ticker as ticker
 
-# Carregar os dados do arquivo CSV
-data = pd.read_csv("/content/plan_analisededados.csv")
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 
-# Filtrar as colunas necessárias
-data = data[['Country', 'Year', 'Status', 'Population', 'Life expectancy ', 'GDP', 'percentage expenditure']]
+print(df.head().to_markdown(index=False, numalign="left", stralign="left"))
 
-# Separar os dados para o período de 2000 a 2015
-data = data[(data['Year'] >= 2000) & (data['Year'] <= 2015)]
+print(df.info())
 
-# Arredondar os valores da coluna 'Life expectancy' para duas casas decimais
-data['Life expectancy '] = data['Life expectancy '].round(2)
+#Carregamento dos dados do arquivo XLSX
+df = pd.read_csv('https://gist.githubusercontent.com/ograndlucius/1bd7811ad7276c12563f7d163e7d10e7/raw/b8b469c143366a2175dcdf92395d9d334997a998/who_db.csv')
+display(df)
 
-# Listar os dados do Brasil
-brazil_data = data[data['Country'] == 'Brazil']
+#Filtragem dos Dados para o Brasil
+column = 'Country'
+criteria = 'Brazil'
 
-# Listar os dados dos países em desenvolvimento
-developing_countries = ['Russian Federation', 'Angola', 'Costa Rica', 'China', 'India', 'Mexico', 'Argentina', 'Peru', 'Panama', 'Ghana']
-developing_data = data[data['Country'].isin(developing_countries)]
+df_filtrado = df[df[column] == criteria]
 
-# Listar os dados dos países desenvolvidos
-developed_countries = ['Italy', 'Iceland', 'Belgium', 'Germany', 'Denmark', 'Ireland', 'Austria', 'Japan']
-developed_data = data[data['Country'].isin(developed_countries)]
+print("Dados filtrados para o Brasil:")
+print(tabulate(df_filtrado[['Year','Life expectancy ']], headers='keys', tablefmt='pipe', showindex=False))
 
-# Comparar a expectativa de vida do Brasil com os países em desenvolvimento e desenvolvidos
-brazil_vs_developing = brazil_data.merge(developing_data, on='Year', suffixes=('_Brazil', '_Developing'))
-brazil_vs_developed = brazil_data.merge(developed_data, on='Year', suffixes=('_Brazil', '_Developed'))
+if not df_filtrado.empty:
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_filtrado['Year'], df_filtrado['Life expectancy '], marker='o', linestyle='-', color='skyblue')
+    plt.xlabel('Ano')
+    plt.ylabel('Expectativa de Vida (Anos)')
+    plt.title('Expectativa de Vida no Brasil ao Longo dos Anos')
+    plt.xticks(rotation=45)
+    plt.grid(axis='y', linestyle='--')
+    plt.tight_layout()
+    plt.show()
+else:
+    print(f"A coluna '{column}' não foi encontrada nos dados ou não há dados para {criteria}.")
 
-# Visualizar a comparação entre Brasil e países em desenvolvimento
+
+#Filtragem dos Dados comparando o Brasil com o Estados Unidos
+df_filtrado = df[(df['Country'] == 'Brazil') | (df['Country'] == 'United States of America')]
+df_brasil = df_filtrado[df_filtrado['Country'] == 'Brazil']
+df_eua = df_filtrado[df_filtrado['Country'] == 'United States of America']
+
 plt.figure(figsize=(10, 6))
-sns.lineplot(data=brazil_vs_developing, x='Year', y='Life expectancy _Brazil', label='Brazil')
-sns.lineplot(data=brazil_vs_developing, x='Year', y='Life expectancy _Developing', label='Developing Countries')
-plt.title('Comparação da Expectativa de Vida: Brasil vs. Países em Desenvolvimento')
+
+plt.plot(df_brasil['Year'], df_brasil['Life expectancy '], marker='o', linestyle='-', color='b', label='Brasil')
+plt.plot(df_eua['Year'], df_eua['Life expectancy '], marker='s', linestyle='-', color='r', label='Estados Unidos')
+
+plt.title('Comparação da Expectativa de Vida: Brasil x EUA')
 plt.xlabel('Ano')
 plt.ylabel('Expectativa de Vida')
-plt.legend()
-plt.show()
 
-# Visualizar a comparação entre Brasil e países desenvolvidos
-plt.figure(figsize=(10, 6))
-sns.lineplot(data=brazil_vs_developed, x='Year', y='Life expectancy _Brazil', label='Brazil')
-sns.lineplot(data=brazil_vs_developed, x='Year', y='Life expectancy _Developed', label='Developed Countries')
-plt.title('Comparação da Expectativa de Vida: Brasil vs. Países Desenvolvidos')
+plt.legend()
+
+plt.grid(axis='y', linestyle='--')
+
+df_brasil_renamed = df_brasil.rename(columns={'Country': 'País', 'Life expectancy ': 'Expectativa de Vida'})
+df_eua_renamed = df_eua.rename(columns={'Country': 'País', 'Life expectancy ': 'Expectativa de Vida'})
+
+df_tabela = pd.concat([df_brasil_renamed, df_eua_renamed])
+
+df_tabela = df_tabela.sort_values(by=['País', 'Year'])
+
+print(tabulate(df_tabela, headers='keys', tablefmt='pipe', showindex=False))
+
+plt.show
+
+#Comparação entre Brasil e os países desenvolvidos
+
+#Comparativo de Expectativa de Vida
+developed_countries = [
+    'Australia', 'Belgium', 'Brazil', 'Croatia', 'Germany',
+    'Ireland', 'Italy', 'Japan', 'Portugal', 'Spain', 'United States of America'
+]
+
+df_developed = df[df['Country'].isin(developed_countries)]
+
+plt.figure(figsize=(15, 10))
+
+for country in developed_countries:
+    country_data = df_developed[df_developed['Country'] == country]
+    plt.plot(country_data['Year'], country_data['Life expectancy '], marker='o', label=country)
+
+print("Tabela de Expectativa de Vida - Países Desenvolvidos")
+print(tabulate(df_developed[['Country', 'Year', 'Life expectancy ']], headers='keys', tablefmt='grid'))
+
 plt.xlabel('Ano')
 plt.ylabel('Expectativa de Vida')
+plt.title('Comparação entre Brasil e os Países Desenvolvidos (Expectativa de Vida)')
 plt.legend()
+plt.grid(True)
 plt.show()
 
-# Calcular a média ponderada da expectativa de vida dos países comparados
-def weighted_average_life_expectancy(df):
-    return np.average(df['Life expectancy _Brazil'], weights=df['Population_Brazil'])
+#Comparativo de PIB
+developed_countries = [
+    'Australia', 'Belgium', 'Brazil', 'Croatia', 'Germany',
+    'Ireland', 'Italy', 'Japan', 'Portugal', 'Spain', 'United States of America'
+]
 
-weighted_average_developing = weighted_average_life_expectancy(brazil_vs_developing)
-weighted_average_developed = weighted_average_life_expectancy(brazil_vs_developed)
+df_developed = df[df['Country'].isin(developed_countries)]
 
-print("Média Ponderada da Expectativa de Vida (Países em Desenvolvimento):", round(weighted_average_developing, 2))
-print("Média Ponderada da Expectativa de Vida (Países Desenvolvidos):", round(weighted_average_developed, 2))
+print("Tabela de PIB - Países Desenvolvidos")
+print(tabulate(df_developed[['Country', 'Year', 'GDP']], headers='keys', tablefmt='grid'))
 
-# Calcular a média do valor gasto com saúde (percentage expenditure)
-mean_percentage_expenditure_developing = developing_data['percentage expenditure'].mean()
-mean_percentage_expenditure_developed = developed_data['percentage expenditure'].mean()
+plt.figure(figsize=(15, 10))
 
-print("Média do Valor Gasto com Saúde (Países em Desenvolvimento):", round(mean_percentage_expenditure_developing, 2))
-print("Média do Valor Gasto com Saúde (Países Desenvolvidos):", round(mean_percentage_expenditure_developed, 2))
+for country in developed_countries:
+    country_data = df_developed[df_developed['Country'] == country]
+    plt.plot(country_data['Year'], country_data['GDP'], marker='o', label=country)
 
-# Relatório - Melhor e pior desempenho no aumento da expectativa de vida
-max_increase_country = brazil_vs_developing.loc[brazil_vs_developing['Life expectancy _Developing'].idxmax()]['Country_Developing']
-min_increase_country = brazil_vs_developing.loc[brazil_vs_developing['Life expectancy _Developing'].idxmin()]['Country_Developing']
+plt.xlabel('Ano')
+plt.ylabel('PIB')
+plt.title('Comparação do PIB entre Brasil e os Países Desenvolvidos')
+plt.legend()
+plt.grid(True)
+plt.show()
 
-print("Melhor desempenho no aumento da expectativa de vida (Países em Desenvolvimento):", max_increase_country)
-print("Pior desempenho no aumento da expectativa de vida (Países em Desenvolvimento):", min_increase_country)
+#Comparativo de População
+developed_countries = [
+    'Australia', 'Belgium', 'Brazil', 'Croatia', 'Germany',
+    'Ireland', 'Italy', 'Japan', 'Portugal', 'Spain', 'United States of America'
+]
 
-# Análise exploratória
-print("\nAnálise Exploratória (Países em Desenvolvimento):")
-print(developing_data.describe())
+df_developed = df[df['Country'].isin(developed_countries)]
 
-# Análise estatística
-print("\nAnálise Estatística (Países em Desenvolvimento):")
-print(developing_data.dtypes)
+print("Tabela de População - Países Desenvolvidos")
+print(tabulate(df_developed[['Country', 'Year', 'Population']], headers='keys', tablefmt='grid'))
 
-# Exemplo de função para carregar dados e filtrar por ano (modifique conforme necessário)
-def carregar_e_filtrar_dados(filepath, ano_inicio, ano_fim):
-    try:
-        data = pd.read_csv(filepath)
-        data_filtered = data[(data['Year'] >= ano_inicio) & (data['Year'] <= ano_fim)]
-        return data_filtered
-    except FileNotFoundError:
-        print("Arquivo não encontrado. Verifique o caminho do arquivo.")
-        return None
-    except pd.errors.EmptyDataError:
-        print("Arquivo está vazio.")
-        return None
-    except Exception as e:
-        print(f"Ocorreu um erro: {e}")
+plt.figure(figsize=(15, 10))
+
+for country in developed_countries:
+    country_data = df_developed[df_developed['Country'] == country]
+    plt.plot(country_data['Year'], country_data['Population'], marker='o', label=country)
+
+plt.xlabel('Ano')
+plt.ylabel('População')
+plt.title('Comparação da População entre Brasil e os Países Desenvolvidos')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Comparação entre Brasil e os países em desenvolvimento
+
+#Comparativo de Expectativa de Vida
+undeveloped_countries = ['Angola', 'Chad', 'Ethiopia', 'Haiti', 'Malawi', 'Mali', 'Mozambique', 'Niger', 'Rwanda', 'Uganda']
+
+df_undeveloped = df[df['Country'].isin(undeveloped_countries + ['Brazil'])]
+
+plt.figure(figsize=(15, 10))
+
+for country in undeveloped_countries + ['Brazil']:
+    country_data = df_undeveloped[df_undeveloped['Country'] == country]
+    plt.plot(country_data['Year'], country_data['Life expectancy '], marker='o', label=country)
+
+print("Tabela de Expectativa de Vida - Países em Desenvolvimento")
+print(tabulate(df_developed[['Country', 'Year', 'Life expectancy ']], headers='keys', tablefmt='grid'))
+
+plt.xlabel('Ano')
+plt.ylabel('Expectativa de Vida')
+plt.title('Comparação entre Brasil e os Países em Desenvolvimento (Expectativa de Vida)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Comparativo de PIB
+undeveloped_countries = [
+    'Angola', 'Chad', 'Ethiopia', 'Haiti', 'Malawi', 'Mali',
+    'Mozambique', 'Niger', 'Rwanda', 'Uganda'
+]
+
+df_undeveloped = df[df['Country'].isin(undeveloped_countries + ['Brazil'])]
+
+print("Tabela de PIB - Países Subdesenvolvidos")
+print(tabulate(df_undeveloped[['Country', 'Year', 'GDP']], headers='keys', tablefmt='grid'))
+
+plt.figure(figsize=(15, 10))
+
+for country in undeveloped_countries + ['Brazil']:
+    country_data = df_undeveloped[df_undeveloped['Country'] == country]
+    plt.plot(country_data['Year'], country_data['GDP'], marker='o', label=country)
+
+plt.xlabel('Ano')
+plt.ylabel('PIB (em bilhões de USD)')
+plt.title('Comparação do PIB entre Brasil e os Países Subdesenvolvidos')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Comparativo de População
+undeveloped_countries = [
+    'Angola', 'Chad', 'Ethiopia', 'Haiti', 'Malawi', 'Mali',
+    'Mozambique', 'Niger', 'Rwanda', 'Uganda'
+]
+
+df_undeveloped = df[df['Country'].isin(undeveloped_countries + ['Brazil'])]
+
+print("Tabela de População - Países Subdesenvolvidos")
+print(tabulate(df_undeveloped[['Country', 'Year', 'Population']], headers='keys', tablefmt='grid'))
+
+plt.figure(figsize=(15, 10))
+
+for country in undeveloped_countries + ['Brazil']:
+    country_data = df_undeveloped[df_undeveloped['Country'] == country]
+    plt.plot(country_data['Year'], country_data['Population'], marker='o', label=country)
+
+plt.xlabel('Ano')
+plt.ylabel('População')
+plt.title('Comparação da População entre Brasil e os Países Subdesenvolvidos')
+plt.legend()
+plt.grid(True)
+plt.show()
